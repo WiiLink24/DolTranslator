@@ -122,6 +122,8 @@ func (t *TranslateCtx) ApplyTranslation(translation *Translation) error {
 		if err != nil {
 			return err
 		}
+
+		return nil
 	}
 
 	virtualAddress := translation.Address
