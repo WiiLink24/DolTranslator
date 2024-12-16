@@ -13,8 +13,10 @@ type Translations struct {
 }
 
 type Translation struct {
-	Address string `json:"address"`
-	Text    string `json:"text"`
+	Address    string      `json:"address"`
+	Text       string      `json:"text"`
+	Encoding   *string     `json:"encoding,omitempty"`
+	References []Reference `json:"refs,omitempty"`
 }
 
 type TranslateCtx struct {
@@ -61,7 +63,67 @@ func (t *TranslateCtx) ApplyTranslations() error {
 	return nil
 }
 
+func (t *TranslateCtx) ApplyUtf8Translation(translation *Translation) error {
+	virtualAddress := translation.Address
+	offset, err := t.dolHeader.GetAddressOffset(virtualAddress)
+	if err != nil {
+		return err
+	}
+
+	// UTF-8 / Shift-JIS strings have a singular byte as null terminator.
+	// Read until the null terminator to determine the size of the string.
+	size := 0
+	workingOffset := offset
+	for {
+		if t.dolData[workingOffset] == 0 {
+			break
+		}
+
+		size++
+		workingOffset++
+	}
+
+	// If the translated text is larger than the original text then we must go into the new data block.
+	if len(translation.Text) > size {
+		// Before writing the string, we need to get the address at which it will be at in the Wii's memory.
+		newAddress := t.newAddress + uint32(t.buf.Len())
+		t.buf.WriteString(translation.Text)
+		t.buf.WriteByte(0)
+
+		// Now we need to replace occurrences of the old address with the new.
+		oldAddress, err := ParseAddress(translation.Address)
+		if err != nil {
+			return err
+		}
+
+		err = t.ReplaceAllOccurrences(translation, oldAddress, newAddress)
+		if err != nil {
+			return err
+		}
+	} else {
+		workingOffset = offset
+		for _, c := range translation.Text {
+			t.dolData[workingOffset] = byte(c)
+			workingOffset++
+		}
+
+		// Nullify the leftover string
+		for i := workingOffset; i < offset+uint32(size); i++ {
+			t.dolData[i] = 0
+		}
+	}
+
+	return nil
+}
+
 func (t *TranslateCtx) ApplyTranslation(translation *Translation) error {
+	if translation.Encoding != nil {
+		err := t.ApplyUtf8Translation(translation)
+		if err != nil {
+			return err
+		}
+	}
+
 	virtualAddress := translation.Address
 	offset, err := t.dolHeader.GetAddressOffset(virtualAddress)
 	if err != nil {
@@ -109,7 +171,10 @@ func (t *TranslateCtx) ApplyTranslation(translation *Translation) error {
 			return err
 		}
 
-		t.ReplaceAllOccurrences(oldAddress, newAddress)
+		err = t.ReplaceAllOccurrences(translation, oldAddress, newAddress)
+		if err != nil {
+			return err
+		}
 	} else {
 		workingOffset = offset
 		for _, u := range utf16Encoded {
@@ -126,12 +191,25 @@ func (t *TranslateCtx) ApplyTranslation(translation *Translation) error {
 	return nil
 }
 
-func (t *TranslateCtx) ReplaceAllOccurrences(toFind uint32, toReplace uint32) {
+func (t *TranslateCtx) ReplaceAllOccurrences(translation *Translation, toFind uint32, toReplace uint32) error {
+	if translation.References != nil {
+		for _, reference := range translation.References {
+			err := t.EditReference(reference, toReplace)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
 	for i := 0; i < len(t.dolData); i += 4 {
 		if binary.BigEndian.Uint32(t.dolData[i:]) == toFind {
 			binary.BigEndian.PutUint32(t.dolData[i:], toReplace)
 		}
 	}
+
+	return nil
 }
 
 func (t *TranslateCtx) WriteTranslatedDol() error {

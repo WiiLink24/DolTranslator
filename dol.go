@@ -55,6 +55,10 @@ func (d *DolHeader) getAddressOffset(addr uint32) (uint32, error) {
 		if d.DataAddresses[i] < addr && addr < d.DataAddresses[i]+d.DataSectionSizes[i] {
 			return d.DataOffsets[i] + (addr - d.DataAddresses[i]), nil
 		}
+
+		if d.TextAddresses[i] < addr && addr < d.TextAddresses[i]+d.TextSectionSizes[i] {
+			return d.TextOffsets[i] + (addr - d.TextAddresses[i]), nil
+		}
 	}
 
 	return 0, errors.New("invalid address")
