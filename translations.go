@@ -117,7 +117,7 @@ func (t *TranslateCtx) ApplyUtf8Translation(translation *Translation) error {
 }
 
 func (t *TranslateCtx) ApplyTranslation(translation *Translation) error {
-	if translation.Encoding != nil {
+	if translation.Encoding != nil && *translation.Encoding == "utf8" {
 		err := t.ApplyUtf8Translation(translation)
 		if err != nil {
 			return err
@@ -196,9 +196,16 @@ func (t *TranslateCtx) ApplyTranslation(translation *Translation) error {
 func (t *TranslateCtx) ReplaceAllOccurrences(translation *Translation, toFind uint32, toReplace uint32) error {
 	if translation.References != nil {
 		for _, reference := range translation.References {
-			err := t.EditReference(reference, toReplace)
-			if err != nil {
-				return err
+			if translation.Encoding != nil {
+				err := t.EditUTF8Reference(reference, toReplace)
+				if err != nil {
+					return err
+				}
+			} else {
+				err := t.EditUTF16Reference(reference, toReplace)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
