@@ -1,0 +1,4 @@
+github.com/logrusorgru/aurora/v3 v3.0.0 h1:R6zcoZZbvVcGMvDCKo45A9U/lzYyzl5NfYIvznmDfE4=
+github.com/logrusorgru/aurora/v3 v3.0.0/go.mod h1:vsR12bk5grlLvLXAYrBsb5Oc/N+LxAlxggSjiwMnCUc=
+github.com/wii-tools/powerpc v0.0.1 h1:J76JjgfszrtLQPmhAsAhTNBdmWeSvUd/t963DH/0bn8=
+github.com/wii-tools/powerpc v0.0.1/go.mod h1:bt/52tMfh1hmEXwFh1i1AOEMNHoe0jSXkcRunOSdFkc=
